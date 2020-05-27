@@ -51,10 +51,17 @@ architecture Behavioral of Firmware_tb is
   -- Clock signals
   signal clk_in_buf : std_logic := '0';
   signal sysclk : std_logic := '0';
+  signal sysclk_buf : std_logic := '0';
   signal sysclkQuarter : std_logic := '0'; 
+  signal sysclkQuarter_buf : std_logic := '0'; 
+  signal sysclkQuarter_out : std_logic := '0';
   signal sysclkDouble : std_logic := '0';
+  signal sysclkDouble_buf : std_logic := '0';
   signal inputCounter: unsigned(13 downto 0) := (others=> '0');
   signal intime_s: std_logic := '0';
+  attribute dont_touch : string;
+  attribute dont_touch of LUT1_inst1 : label is "true";
+  attribute dont_touch of LUT1_inst2 : label is "true";
   -- Constants
   constant bw_input1 : integer := 12;
   constant bw_input2 : integer := 12;
@@ -76,6 +83,7 @@ architecture Behavioral of Firmware_tb is
 
 begin
 
+  -- Generate clock for simulation
   input_clk_simulation_i : if in_simulation generate
     process
       constant clk_period_by_2 : time := 1.666 ns;
@@ -88,6 +96,7 @@ begin
       end loop;
     end process;
   end generate input_clk_simulation_i;
+  -- Get clock from pin for synthesis
   input_clk_synthesize_i : if in_synthesis generate
     ibufg_i : IBUFGDS
     port map (
@@ -105,8 +114,6 @@ begin
             CLK_OUT80=> sysclkDouble
           );
 
-  J36_USER_SMA_GPIO_P <= sysclk;
-
   i_ila : ila
   port map(
     clk => sysclk,
@@ -119,9 +126,27 @@ begin
   data(11 downto 0) <= input1_s;
   data(23 downto 12) <= input2_s;
   data(43 downto 24) <= output_s;
-  data(44) <= sysclkQuarter;
+  data(44) <= sysclkQuarter_out;
 
-  -- Simulation process.
+  -- Delays the path to help hold timing error
+  LUT1_inst1 : LUT1
+  generic map (
+    INIT => X"2"
+  )
+  port map (
+    O => sysclkQuarter_buf,
+    I0 => sysclkQuarter
+  );
+  LUT1_inst2 : LUT1
+  generic map (
+    INIT => X"2"
+  )
+  port map (
+    O => sysclkQuarter_out,
+    I0 => sysclkQuarter_buf
+  );
+
+  -- Input generation process.
   inputGenerator_i: process (sysclk) is
 
     --Values
@@ -130,7 +155,7 @@ begin
 
   begin
 
-    -- Simulate data coming out every fourth clock
+    -- Generate data coming out every fourth clock
     if sysclk'event and sysclk='1' then
 
       inputCounter <= inputCounter + 1;
