@@ -1,4 +1,5 @@
 An example "firmwareable" testbench. Uses LUTs to give input to the test module.
+Targeted for the KCU105 board.
 
 # Template
 Only the source folder is requried. Other folders can be generated using the generator tcl files.
